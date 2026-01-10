@@ -1,4 +1,4 @@
-[text](https://tvtvtv.web.app)
+https://tvtvtv.web.app
 
 # TV Player - M3U Playlist Web Player
 
