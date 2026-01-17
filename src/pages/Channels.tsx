@@ -448,6 +448,27 @@ const Channels = () => {
                   >
                     {favoriteIds.has(channel.id) ? '★' : '☆'}
                   </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Create M3U file content
+                      const m3uContent = `#EXTM3U\n#EXTINF:-1,${channel.name}\n${channel.url}`;
+                      const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${channel.name.replace(/[^a-z0-9]/gi, '_')}.m3u`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="text-2xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 text-orange-500 hover:text-orange-400"
+                    aria-label="Download for VLC"
+                    title="Download M3U file for VLC"
+                  >
+                    🎬
+                  </button>
                   <div className="text-2xl text-gray-300 flex-shrink-0 ml-1">▶</div>
                 </div>
               </div>
