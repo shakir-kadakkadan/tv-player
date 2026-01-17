@@ -11,22 +11,51 @@ const Channels = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [httpsOnly, setHttpsOnly] = useState(false);
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Restore selected index from sessionStorage
-  const getStoredIndex = () => {
-    const stored = sessionStorage.getItem(`channels-scroll-${playlistId}`);
-    if (stored) {
-      const data = JSON.parse(stored);
-      return data.selectedIndex || 0;
+  // Check navigation direction and restore state only when coming back
+  const getInitialState = () => {
+    const navigationDirection = sessionStorage.getItem(`navigation-direction-${playlistId}`);
+    const isComingBack = navigationDirection !== 'forward';
+
+    if (isComingBack) {
+      const stored = sessionStorage.getItem(`channels-state-${playlistId}`);
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          return {
+            selectedIndex: data.selectedIndex || 0,
+            searchQuery: data.searchQuery || '',
+            httpsOnly: data.httpsOnly || false,
+            scrollTop: data.scrollTop || 0
+          };
+        } catch {
+          // If parsing fails, return defaults
+        }
+      }
+    } else {
+      // Clear state when navigating forward
+      sessionStorage.removeItem(`channels-state-${playlistId}`);
     }
-    return 0;
+
+    // Clear the navigation direction marker after reading
+    sessionStorage.removeItem(`navigation-direction-${playlistId}`);
+
+    return {
+      selectedIndex: 0,
+      searchQuery: '',
+      httpsOnly: false,
+      scrollTop: 0
+    };
   };
-  const [selectedIndex, setSelectedIndex] = useState(getStoredIndex);
+
+  const initialState = getInitialState();
+  const [selectedIndex, setSelectedIndex] = useState(initialState.selectedIndex);
+  const [searchQuery, setSearchQuery] = useState(initialState.searchQuery);
+  const [httpsOnly, setHttpsOnly] = useState(initialState.httpsOnly);
+  const storedScrollTop = useRef(initialState.scrollTop);
 
   // Playlist URLs
   const playlistUrls: Record<string, string> = {
@@ -116,7 +145,7 @@ const Channels = () => {
         const contains = filtered.filter(channel =>
           !channel.name.toLowerCase().startsWith(query) &&
           (channel.name.toLowerCase().includes(query) ||
-           (channel.group && channel.group.toLowerCase().includes(query)))
+            (channel.group && channel.group.toLowerCase().includes(query)))
         );
         // Combine: startsWith first, then contains
         filtered = [...startsWith, ...contains];
@@ -147,6 +176,8 @@ const Channels = () => {
           if (isChannelItem) {
             e.preventDefault();
             const index = parseInt(target.getAttribute('data-index') || '0');
+            // Mark this as forward navigation
+            sessionStorage.setItem(`navigation-direction-${playlistId}`, 'forward');
             navigate(`/player/${playlistId}/${channels[index].id}`);
           }
           break;
@@ -162,39 +193,37 @@ const Channels = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, channels, playlistId]);
 
-  // Save scroll state before navigating away
+  // Save all state before navigating away
   useEffect(() => {
-    const saveScrollState = () => {
-      sessionStorage.setItem(`channels-scroll-${playlistId}`, JSON.stringify({
+    const saveState = () => {
+      sessionStorage.setItem(`channels-state-${playlistId}`, JSON.stringify({
         selectedIndex,
-        scrollTop: window.scrollY
+        scrollTop: window.scrollY,
+        searchQuery,
+        httpsOnly
       }));
     };
 
-    window.addEventListener('beforeunload', saveScrollState);
+    window.addEventListener('beforeunload', saveState);
     return () => {
-      saveScrollState();
-      window.removeEventListener('beforeunload', saveScrollState);
+      saveState();
+      window.removeEventListener('beforeunload', saveState);
     };
-  }, [selectedIndex, playlistId]);
+  }, [selectedIndex, playlistId, searchQuery, httpsOnly]);
 
-  // Restore scroll position and focus on stored item (only on initial load, not during search)
+  // Restore scroll position and focus on stored item (only on initial load)
   useEffect(() => {
-    if (channels.length > 0 && !searchQuery) {
-      const stored = sessionStorage.getItem(`channels-scroll-${playlistId}`);
-      const storedIndex = stored ? JSON.parse(stored).selectedIndex || 0 : 0;
-      const storedScroll = stored ? JSON.parse(stored).scrollTop || 0 : 0;
-
+    if (channels.length > 0 && initialState.scrollTop > 0) {
       const timer = setTimeout(() => {
         // Restore scroll position
-        window.scrollTo(0, storedScroll);
+        window.scrollTo(0, storedScrollTop.current);
         // Focus on the stored item
-        const targetIndex = Math.min(storedIndex, channels.length - 1);
+        const targetIndex = Math.min(initialState.selectedIndex, channels.length - 1);
         itemRefs.current[targetIndex]?.focus();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [channels.length, playlistId, searchQuery]);
+  }, [channels.length]);
 
   return (
     <div className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
@@ -242,11 +271,10 @@ const Channels = () => {
             {window.location.protocol === 'https:' && (
               <button
                 onClick={() => setHttpsOnly(!httpsOnly)}
-                className={`px-6 py-4 rounded-xl text-xl font-semibold transition-all whitespace-nowrap ${
-                  httpsOnly
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                }`}
+                className={`px-6 py-4 rounded-xl text-xl font-semibold transition-all whitespace-nowrap ${httpsOnly
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                  }`}
               >
                 {httpsOnly ? '✓ ' : ''}HTTPS Only
               </button>
@@ -281,74 +309,74 @@ const Channels = () => {
 
         {!loading && !error && channels.length > 0 && (
           <div className="grid grid-cols-1 gap-6 max-w-5xl mx-auto px-6">
-          {channels.map((channel, index) => (
-            <div
-              key={channel.id}
-              ref={(el) => { itemRefs.current[index] = el; }}
-              tabIndex={0}
-              data-index={index}
-              className={`
+            {channels.map((channel, index) => (
+              <div
+                key={channel.id}
+                ref={(el) => { itemRefs.current[index] = el; }}
+                tabIndex={0}
+                data-index={index}
+                className={`
                 channel-item p-8 rounded-2xl cursor-pointer transition-all border-4 outline-none
-                ${
-                  !searchQuery && selectedIndex === index
+                ${!searchQuery && selectedIndex === index
                     ? 'bg-blue-600 scale-[1.02] shadow-xl shadow-blue-500/50 border-blue-400'
                     : 'bg-gray-800 hover:bg-gray-700 border-transparent'
-                }
+                  }
               `}
-              onFocus={() => !searchQuery && setSelectedIndex(index)}
-              onMouseEnter={() => !searchQuery && setSelectedIndex(index)}
-              onClick={() => {
-                setSelectedIndex(index);
-                navigate(`/player/${playlistId}/${channel.id}`);
-              }}
-            >
-              <div className="flex items-center gap-8">
-                <div className="w-24 h-24 flex items-center justify-center flex-shrink-0">
-                  {channel.logo && channel.logo.startsWith('http') ? (
-                    <img src={channel.logo} alt={channel.name} className="w-24 h-24 object-contain" />
-                  ) : (
-                    <div className="text-6xl">{channel.logo || '📺'}</div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-4xl font-bold truncate">{channel.name}</h2>
-                  {channel.group && (
-                    <p className="text-gray-300 mt-2 text-2xl">{channel.group}</p>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const isNowFavorite = toggleFavorite(channel);
-                    setFavoriteIds(prev => {
-                      const newSet = new Set(prev);
-                      if (isNowFavorite) {
-                        newSet.add(channel.id);
-                      } else {
-                        newSet.delete(channel.id);
-                        // If on favorites page, remove from list
-                        if (playlistId === 'favorites') {
-                          setChannels(ch => ch.filter(c => c.id !== channel.id));
-                          setAllChannels(ch => ch.filter(c => c.id !== channel.id));
+                onFocus={() => !searchQuery && setSelectedIndex(index)}
+                onMouseEnter={() => !searchQuery && setSelectedIndex(index)}
+                onClick={() => {
+                  setSelectedIndex(index);
+                  // Mark this as forward navigation
+                  sessionStorage.setItem(`navigation-direction-${playlistId}`, 'forward');
+                  navigate(`/player/${playlistId}/${channel.id}`);
+                }}
+              >
+                <div className="flex items-center gap-8">
+                  <div className="w-24 h-24 flex items-center justify-center flex-shrink-0">
+                    {channel.logo && channel.logo.startsWith('http') ? (
+                      <img src={channel.logo} alt={channel.name} className="w-24 h-24 object-contain" />
+                    ) : (
+                      <div className="text-6xl">{channel.logo || '📺'}</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-4xl font-bold truncate">{channel.name}</h2>
+                    {channel.group && (
+                      <p className="text-gray-300 mt-2 text-2xl">{channel.group}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const isNowFavorite = toggleFavorite(channel);
+                      setFavoriteIds(prev => {
+                        const newSet = new Set(prev);
+                        if (isNowFavorite) {
+                          newSet.add(channel.id);
+                        } else {
+                          newSet.delete(channel.id);
+                          // If on favorites page, remove from list
+                          if (playlistId === 'favorites') {
+                            setChannels(ch => ch.filter(c => c.id !== channel.id));
+                            setAllChannels(ch => ch.filter(c => c.id !== channel.id));
+                          }
                         }
-                      }
-                      return newSet;
-                    });
-                  }}
-                  className={`text-5xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${
-                    favoriteIds.has(channel.id)
+                        return newSet;
+                      });
+                    }}
+                    className={`text-5xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${favoriteIds.has(channel.id)
                       ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]'
                       : 'text-gray-500 hover:text-yellow-300'
-                  }`}
-                  aria-label={favoriteIds.has(channel.id) ? 'Remove from favorites' : 'Add to favorites'}
-                >
-                  {favoriteIds.has(channel.id) ? '★' : '☆'}
-                </button>
-                <div className="text-5xl text-gray-300 flex-shrink-0 ml-2">▶</div>
+                      }`}
+                    aria-label={favoriteIds.has(channel.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    {favoriteIds.has(channel.id) ? '★' : '☆'}
+                  </button>
+                  <div className="text-5xl text-gray-300 flex-shrink-0 ml-2">▶</div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
         )}
 
         {!loading && !error && channels.length > 0 && (
