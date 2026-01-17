@@ -78,10 +78,18 @@ const PlaylistList = () => {
     },
   ];
 
-  // Add favorites at the beginning if they exist
-  const playlists: Playlist[] = hasFavorites
-    ? [{ id: 'favorites', name: 'My Favorites', url: '', thumbnail: '⭐' }, ...basePlaylists]
-    : basePlaylists;
+  // Add Most Watched and Favorites at the beginning
+  const playlists: Playlist[] = [];
+
+  if (hasFavorites) {
+    playlists.push({ id: 'favorites', name: 'My Favorites', url: '', thumbnail: '⭐' });
+  }
+
+  // Always add Most Watched
+  playlists.push({ id: 'most-watched', name: 'Most Watched', url: '', thumbnail: '🔥' });
+
+  // Add base playlists
+  playlists.push(...basePlaylists);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set } from 'firebase/database';
+import { getDatabase, ref, push, set, get } from 'firebase/database';
 
 const firebaseConfig = {
     databaseURL: "https://tv123-f6b2a-default-rtdb.firebaseio.com"
@@ -44,6 +44,54 @@ export const trackIPData = async (action: string, metadata?: { channelName?: str
         console.log('IP tracking saved:', action);
     } catch (e) {
         console.error('Error tracking IP data:', e);
+    }
+};
+
+interface ChannelData {
+    id: string;
+    name: string;
+    url: string;
+    logo?: string;
+    group?: string;
+}
+
+export const trackChannelView = async (channel: ChannelData): Promise<void> => {
+    try {
+        // Create a unique key from the channel URL by removing special characters
+        const channelKey = channel.url
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .substring(0, 200); // Limit length for Firebase key
+
+        const channelRef = ref(database, `/channel_views/${channelKey}`);
+
+        // Get existing data
+        const snapshot = await get(channelRef);
+        const existingData = snapshot.val();
+
+        if (existingData) {
+            // Channel exists, increment view count
+            await set(channelRef, {
+                ...existingData,
+                viewCount: (existingData.viewCount || 0) + 1,
+                lastViewedAt: Date.now(),
+            });
+        } else {
+            // New channel, create entry
+            await set(channelRef, {
+                id: channel.id,
+                name: channel.name,
+                url: channel.url,
+                logo: channel.logo || '',
+                group: channel.group || '',
+                viewCount: 1,
+                firstViewedAt: Date.now(),
+                lastViewedAt: Date.now(),
+            });
+        }
+
+        console.log('Channel view tracked:', channel.name);
+    } catch (e) {
+        console.error('Error tracking channel view:', e);
     }
 };
 

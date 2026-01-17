@@ -101,6 +101,46 @@ const Channels = () => {
         return;
       }
 
+      // Handle most-watched playlist
+      if (playlistId === 'most-watched') {
+        try {
+          const { database } = await import('../utils/firebase');
+          const { ref, get } = await import('firebase/database');
+
+          const channelViewsRef = ref(database, '/channel_views');
+          const snapshot = await get(channelViewsRef);
+          const viewsData = snapshot.val();
+
+          if (!viewsData) {
+            setError('No views tracked yet');
+            setLoading(false);
+            return;
+          }
+
+          // Convert to array and sort by view count
+          const channelsWithViews: Channel[] = Object.values(viewsData)
+            .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
+            .map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              url: item.url,
+              logo: item.logo || '📺',
+              group: item.group || 'Most Watched',
+            }));
+
+          setAllChannels(channelsWithViews);
+          setChannels(channelsWithViews);
+          localStorage.setItem('channels', JSON.stringify(channelsWithViews));
+          setLoading(false);
+          return;
+        } catch (err) {
+          setError('Failed to load most watched channels');
+          console.error('Error loading most watched:', err);
+          setLoading(false);
+          return;
+        }
+      }
+
       const url = playlistUrls[playlistId || '1'];
       if (!url) {
         setError('Playlist not found');

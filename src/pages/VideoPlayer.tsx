@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Channel } from '../types';
-import { trackIPData } from '../utils/firebase';
+import { trackIPData, trackChannelView } from '../utils/firebase';
 
 const VideoPlayer = () => {
   const navigate = useNavigate();
@@ -39,6 +39,15 @@ const VideoPlayer = () => {
 
           // Track page view with channel name
           trackIPData('video_player_page_load', { channelName: channel.name });
+
+          // Track channel view for Most Watched feature
+          trackChannelView({
+            id: channel.id,
+            name: channel.name,
+            url: channel.url,
+            logo: channel.logo,
+            group: channel.group
+          });
         } else {
           setChannelInfo({ name: 'Channel not found', url: '' });
           // Track page view without channel name
