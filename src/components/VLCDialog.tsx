@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface VLCDialogProps {
     isOpen: boolean;
@@ -10,6 +10,24 @@ interface VLCDialogProps {
 export const VLCDialog = ({ isOpen, onClose, url, type }: VLCDialogProps) => {
     const [copied, setCopied] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
+
+    // Handle browser back button when video is open
+    useEffect(() => {
+        if (showVideo) {
+            const handlePopState = (e: PopStateEvent) => {
+                e.preventDefault();
+                setShowVideo(false);
+                window.history.pushState(null, '', window.location.href);
+            };
+
+            window.history.pushState(null, '', window.location.href);
+            window.addEventListener('popstate', handlePopState);
+
+            return () => {
+                window.removeEventListener('popstate', handlePopState);
+            };
+        }
+    }, [showVideo]);
 
     if (!isOpen) return null;
 
@@ -73,21 +91,26 @@ export const VLCDialog = ({ isOpen, onClose, url, type }: VLCDialogProps) => {
                 </div>
             </div>
 
+
             {/* Video Modal */}
             {showVideo && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-90" onClick={() => setShowVideo(false)}>
-                    <div className="relative max-w-4xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-95 p-4"
+                    onClick={() => setShowVideo(false)}
+                >
+                    <div className="relative w-full h-full max-w-md flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
                         <button
                             onClick={() => setShowVideo(false)}
-                            className="absolute -top-12 right-0 text-white text-2xl hover:text-gray-300"
+                            className="mb-4 px-6 py-3 bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors"
                         >
-                            ✕ Close
+                            ✕ Close Video
                         </button>
                         <video
                             src="/vlc-howto.mp4"
                             controls
                             autoPlay
-                            className="w-full rounded-lg shadow-2xl"
+                            className="w-full max-h-[80vh] rounded-lg shadow-2xl"
+                            style={{ objectFit: 'contain' }}
                         />
                     </div>
                 </div>
