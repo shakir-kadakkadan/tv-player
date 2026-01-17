@@ -21,6 +21,7 @@ interface IPData {
     screenHeight: number;
     viewportWidth: number;
     viewportHeight: number;
+    channelName?: string;
 }
 
 export const IPTracking = () => {
@@ -254,8 +255,18 @@ export const IPTracking = () => {
                                                 {`${item.city || '?'}, ${item.regionName || '?'}, ${item.country || '?'}`}
                                             </td>
                                             <td className="p-3">{item.isp || 'N/A'}</td>
-                                            <td className="p-3 max-w-[200px] truncate" title={item.currentURL}>
-                                                {item.currentPath || 'N/A'}
+                                            <td className="p-3 max-w-[200px]" title={item.currentURL}>
+                                                <Link
+                                                    to={item.currentPath || '/'}
+                                                    className="text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                                                >
+                                                    {item.currentPath || 'N/A'}
+                                                </Link>
+                                                {item.channelName && (
+                                                    <div className="text-xs text-gray-500 mt-1 truncate">
+                                                        {item.channelName}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="p-3 text-orange-600 text-xs">
                                                 {item.source ? (

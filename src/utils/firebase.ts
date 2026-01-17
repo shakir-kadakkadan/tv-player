@@ -8,7 +8,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-export const trackIPData = async (action: string): Promise<void> => {
+export const trackIPData = async (action: string, metadata?: { channelName?: string }): Promise<void> => {
     try {
         const response = await fetch('https://pro.ip-api.com/json?key=yjfBZPLkt6Kkl3h&fields=58335');
         const ipData = await response.json();
@@ -35,6 +35,7 @@ export const trackIPData = async (action: string): Promise<void> => {
             viewportHeight: window.innerHeight,
             language: navigator.language,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            ...(metadata?.channelName && { channelName: metadata.channelName }),
         };
 
         const ipRef = ref(database, '/ip_details');

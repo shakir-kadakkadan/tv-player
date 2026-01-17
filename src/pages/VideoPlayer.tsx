@@ -36,18 +36,25 @@ const VideoPlayer = () => {
             setIsMixedContent(false);
             setVideoError(null);
           }
+
+          // Track page view with channel name
+          trackIPData('video_player_page_load', { channelName: channel.name });
         } else {
           setChannelInfo({ name: 'Channel not found', url: '' });
+          // Track page view without channel name
+          trackIPData('video_player_page_load');
         }
       } catch (error) {
         console.error('Error parsing channels from localStorage:', error);
         setChannelInfo({ name: 'Error loading channel', url: '' });
+        // Track page view without channel name
+        trackIPData('video_player_page_load');
       }
     } else {
       setChannelInfo({ name: 'No channels loaded', url: '' });
+      // Track page view without channel name
+      trackIPData('video_player_page_load');
     }
-    // Track page view
-    trackIPData('video_player_page_load');
   }, [channelId]);
 
   const hideControlsAfterDelay = () => {
