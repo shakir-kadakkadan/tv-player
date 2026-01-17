@@ -2,29 +2,67 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Channel } from '../types';
 import { parseM3U } from '../utils/m3uParser';
-import { isMalayalamChannel } from '../utils/malayalamChannels';
+import { getFavorites, toggleFavorite } from '../utils/favorites';
 
 const Channels = () => {
   const navigate = useNavigate();
   const { playlistId } = useParams();
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  // Restore selected index from sessionStorage
+  const getStoredIndex = () => {
+    const stored = sessionStorage.getItem(`channels-scroll-${playlistId}`);
+    if (stored) {
+      const data = JSON.parse(stored);
+      return data.selectedIndex || 0;
+    }
+    return 0;
+  };
+  const [selectedIndex, setSelectedIndex] = useState(getStoredIndex);
 
   // Playlist URLs
   const playlistUrls: Record<string, string> = {
-    'malayalam': 'https://iptv-org.github.io/iptv/index.m3u',
+    'malayalam': 'https://iptv-org.github.io/iptv/languages/mal.m3u',
     'all': 'https://iptv-org.github.io/iptv/index.m3u',
+    'sports': 'https://iptv-org.github.io/iptv/categories/sports.m3u',
+    'movies': 'https://iptv-org.github.io/iptv/categories/movies.m3u',
+    'tamil': 'https://iptv-org.github.io/iptv/languages/tam.m3u',
+    'hindi': 'https://iptv-org.github.io/iptv/languages/hin.m3u',
+    'kids': 'https://iptv-org.github.io/iptv/categories/kids.m3u',
+    'english': 'https://iptv-org.github.io/iptv/languages/eng.m3u',
+    'india': 'https://iptv-org.github.io/iptv/countries/in.m3u',
   };
+
+  // Load favorites into state
+  useEffect(() => {
+    const favs = getFavorites();
+    setFavoriteIds(new Set(favs.map(ch => ch.id)));
+  }, []);
 
   useEffect(() => {
     const loadChannels = async () => {
       setLoading(true);
       setError(null);
+
+      // Handle favorites playlist
+      if (playlistId === 'favorites') {
+        const favs = getFavorites();
+        if (favs.length === 0) {
+          setError('No favorites yet');
+        } else {
+          setAllChannels(favs);
+          setChannels(favs);
+          localStorage.setItem('channels', JSON.stringify(favs));
+        }
+        setLoading(false);
+        return;
+      }
 
       const url = playlistUrls[playlistId || '1'];
       if (!url) {
@@ -34,14 +72,7 @@ const Channels = () => {
       }
 
       try {
-        let parsedChannels = await parseM3U(url);
-
-        // Filter Malayalam channels if the playlist is Malayalam
-        if (playlistId === 'malayalam') {
-          parsedChannels = parsedChannels.filter(channel =>
-            isMalayalamChannel(channel.name)
-          );
-        }
+        const parsedChannels = await parseM3U(url);
 
         if (parsedChannels.length === 0) {
           setError('No channels found in playlist');
@@ -102,15 +133,39 @@ const Channels = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, channels, playlistId]);
 
-  // Auto-focus first item on load
+  // Save scroll state before navigating away
   useEffect(() => {
-    if (channels.length > 0 && itemRefs.current[0]) {
+    const saveScrollState = () => {
+      sessionStorage.setItem(`channels-scroll-${playlistId}`, JSON.stringify({
+        selectedIndex,
+        scrollTop: window.scrollY
+      }));
+    };
+
+    window.addEventListener('beforeunload', saveScrollState);
+    return () => {
+      saveScrollState();
+      window.removeEventListener('beforeunload', saveScrollState);
+    };
+  }, [selectedIndex, playlistId]);
+
+  // Restore scroll position and focus on stored item
+  useEffect(() => {
+    if (channels.length > 0) {
+      const stored = sessionStorage.getItem(`channels-scroll-${playlistId}`);
+      const storedIndex = stored ? JSON.parse(stored).selectedIndex || 0 : 0;
+      const storedScroll = stored ? JSON.parse(stored).scrollTop || 0 : 0;
+
       const timer = setTimeout(() => {
-        itemRefs.current[0]?.focus();
+        // Restore scroll position
+        window.scrollTo(0, storedScroll);
+        // Focus on the stored item
+        const targetIndex = Math.min(storedIndex, channels.length - 1);
+        itemRefs.current[targetIndex]?.focus();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [channels]);
+  }, [channels, playlistId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
@@ -213,6 +268,34 @@ const Channels = () => {
                     Press Enter to play
                   </p>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const isNowFavorite = toggleFavorite(channel);
+                    setFavoriteIds(prev => {
+                      const newSet = new Set(prev);
+                      if (isNowFavorite) {
+                        newSet.add(channel.id);
+                      } else {
+                        newSet.delete(channel.id);
+                        // If on favorites page, remove from list
+                        if (playlistId === 'favorites') {
+                          setChannels(ch => ch.filter(c => c.id !== channel.id));
+                          setAllChannels(ch => ch.filter(c => c.id !== channel.id));
+                        }
+                      }
+                      return newSet;
+                    });
+                  }}
+                  className={`text-6xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${
+                    favoriteIds.has(channel.id)
+                      ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]'
+                      : 'text-gray-500 hover:text-yellow-300'
+                  }`}
+                  aria-label={favoriteIds.has(channel.id) ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {favoriteIds.has(channel.id) ? '★' : '☆'}
+                </button>
                 <div className="text-7xl text-gray-300 flex-shrink-0 ml-4">▶</div>
               </div>
             </div>

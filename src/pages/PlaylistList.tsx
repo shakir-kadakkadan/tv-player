@@ -1,18 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Playlist } from '../types';
+import { getFavorites } from '../utils/favorites';
 
 const PlaylistList = () => {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [hasFavorites, setHasFavorites] = useState(false);
 
-  // IPTV.org playlists
-  const playlists: Playlist[] = [
+  // Check for favorites on mount
+  useEffect(() => {
+    setHasFavorites(getFavorites().length > 0);
+  }, []);
+
+  // Base playlists
+  const basePlaylists: Playlist[] = [
     {
       id: 'malayalam',
       name: 'Malayalam Channels',
-      url: 'https://iptv-org.github.io/iptv/index.m3u',
+      url: 'https://iptv-org.github.io/iptv/languages/mal.m3u',
       thumbnail: '🇮🇳',
     },
     {
@@ -21,7 +28,54 @@ const PlaylistList = () => {
       url: 'https://iptv-org.github.io/iptv/index.m3u',
       thumbnail: '📺',
     },
+    {
+      id: 'sports',
+      name: 'Sports Channels',
+      url: 'https://iptv-org.github.io/iptv/categories/sports.m3u',
+      thumbnail: '⚽',
+    },
+    {
+      id: 'movies',
+      name: 'Movies Channels',
+      url: 'https://iptv-org.github.io/iptv/categories/movies.m3u',
+      thumbnail: '🎬',
+    },
+    {
+      id: 'tamil',
+      name: 'Tamil Channels',
+      url: 'https://iptv-org.github.io/iptv/languages/tam.m3u',
+      thumbnail: '🇮🇳',
+    },
+    {
+      id: 'hindi',
+      name: 'Hindi Channels',
+      url: 'https://iptv-org.github.io/iptv/languages/hin.m3u',
+      thumbnail: '🇮🇳',
+    },
+    {
+      id: 'kids',
+      name: 'Kids Channels',
+      url: 'https://iptv-org.github.io/iptv/categories/kids.m3u',
+      thumbnail: '👶',
+    },
+    {
+      id: 'english',
+      name: 'English Channels',
+      url: 'https://iptv-org.github.io/iptv/languages/eng.m3u',
+      thumbnail: '🌍',
+    },
+    {
+      id: 'india',
+      name: 'India Channels',
+      url: 'https://iptv-org.github.io/iptv/countries/in.m3u',
+      thumbnail: '🇮🇳',
+    },
   ];
+
+  // Add favorites at the beginning if they exist
+  const playlists: Playlist[] = hasFavorites
+    ? [{ id: 'favorites', name: 'My Favorites', url: '', thumbnail: '⭐' }, ...basePlaylists]
+    : basePlaylists;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
