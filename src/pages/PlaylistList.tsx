@@ -136,8 +136,8 @@ const PlaylistList = () => {
   }, []);
 
   return (
-    <div ref={containerRef} className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-4">
+    <div ref={containerRef} className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-2 md:p-8 overflow-y-auto">
+      <div className="max-w-7xl mx-auto px-1 md:px-4">
         {/* Sticky Header Section */}
         <div
           className={`sticky top-0 z-10 bg-gradient-to-br from-gray-900 via-black to-gray-900 pb-6 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
@@ -151,7 +151,7 @@ const PlaylistList = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 max-w-5xl mx-auto px-4">
+        <div className="grid grid-cols-1 gap-3 max-w-5xl mx-auto px-1 md:px-4">
           {playlists.map((playlist, index) => (
             <div
               key={playlist.id}
