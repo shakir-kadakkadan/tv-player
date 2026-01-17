@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Channel } from '../types';
+import { trackIPData } from '../utils/firebase';
 
 const VideoPlayer = () => {
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ const VideoPlayer = () => {
     } else {
       setChannelInfo({ name: 'No channels loaded', url: '' });
     }
+    // Track page view
+    trackIPData('video_player_page_load');
   }, [channelId]);
 
   const hideControlsAfterDelay = () => {
@@ -243,60 +246,59 @@ const VideoPlayer = () => {
 
       {/* Controls Overlay - only show when video is playing */}
       {!videoError && channelInfo?.url && (
-      <>
-        <div
-          className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/50 transition-opacity duration-300 ${
-            showControls ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-        {/* Top Bar */}
-        <div className="absolute top-0 left-0 right-0 p-8">
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => navigate(`/playlist/${playlistId}`)}
-              className="text-white hover:text-blue-400 text-2xl flex items-center gap-2"
-            >
-              ← Back
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="text-gray-300 hover:text-white text-2xl flex items-center gap-2"
-            >
-              🏠 Home
-            </button>
-          </div>
-        </div>
-
-        {/* Center Play/Pause */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <button
-            onClick={togglePlayPause}
-            className="text-white text-8xl opacity-80 hover:opacity-100 transition-opacity"
+        <>
+          <div
+            className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/50 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+              }`}
           >
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-        </div>
+            {/* Top Bar */}
+            <div className="absolute top-0 left-0 right-0 p-8">
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => navigate(`/playlist/${playlistId}`)}
+                  className="text-white hover:text-blue-400 text-2xl flex items-center gap-2"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="text-gray-300 hover:text-white text-2xl flex items-center gap-2"
+                >
+                  🏠 Home
+                </button>
+              </div>
+            </div>
 
-        {/* Bottom Bar */}
-        <div className="absolute bottom-0 left-0 right-0 p-8">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-4xl font-bold mb-4">{channelInfo?.name || 'Loading...'}</h2>
-            <div className="flex items-center gap-4 text-xl text-gray-300">
-              <span>Volume: {Math.round(volume * 100)}%</span>
-              <span>•</span>
-              <span>{isPlaying ? 'Playing' : 'Paused'}</span>
+            {/* Center Play/Pause */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <button
+                onClick={togglePlayPause}
+                className="text-white text-8xl opacity-80 hover:opacity-100 transition-opacity"
+              >
+                {isPlaying ? '⏸' : '▶'}
+              </button>
+            </div>
+
+            {/* Bottom Bar */}
+            <div className="absolute bottom-0 left-0 right-0 p-8">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-4xl font-bold mb-4">{channelInfo?.name || 'Loading...'}</h2>
+                <div className="flex items-center gap-4 text-xl text-gray-300">
+                  <span>Volume: {Math.round(volume * 100)}%</span>
+                  <span>•</span>
+                  <span>{isPlaying ? 'Playing' : 'Paused'}</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        </div>
 
-        {/* Help text */}
-        {showControls && (
-          <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 text-center text-gray-400 text-lg">
-            <p>Space: Play/Pause • ↑↓: Volume • ←→: Seek • F: Fullscreen • Backspace: Back</p>
-          </div>
-        )}
-      </>
+          {/* Help text */}
+          {showControls && (
+            <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 text-center text-gray-400 text-lg">
+              <p>Space: Play/Pause • ↑↓: Volume • ←→: Seek • F: Fullscreen • Backspace: Back</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

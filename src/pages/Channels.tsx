@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Channel } from '../types';
 import { parseM3U } from '../utils/m3uParser';
 import { getFavorites, toggleFavorite } from '../utils/favorites';
+import { trackIPData } from '../utils/firebase';
 
 const Channels = () => {
   const navigate = useNavigate();
@@ -77,6 +78,8 @@ const Channels = () => {
   useEffect(() => {
     const favs = getFavorites();
     setFavoriteIds(new Set(favs.map(ch => ch.id)));
+    // Track page view
+    trackIPData('channels_page_load');
   }, []);
 
   useEffect(() => {

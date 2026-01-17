@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Playlist } from '../types';
 import { getFavorites } from '../utils/favorites';
+import { trackIPData } from '../utils/firebase';
 
 const PlaylistList = () => {
   const navigate = useNavigate();
@@ -15,6 +16,8 @@ const PlaylistList = () => {
   // Check for favorites on mount
   useEffect(() => {
     setHasFavorites(getFavorites().length > 0);
+    // Track page view
+    trackIPData('playlist_list_page_load');
   }, []);
 
   // Base playlists

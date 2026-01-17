@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import PlaylistList from './pages/PlaylistList';
 import Channels from './pages/Channels';
 import VideoPlayer from './pages/VideoPlayer';
+import { IPTracking } from './pages/IPTracking';
+
 
 function isInAppBrowser(): { isInApp: boolean; platform: string } {
   const ua = navigator.userAgent || navigator.vendor || '';
@@ -112,6 +114,7 @@ function App() {
           <Route path="/" element={<PlaylistList />} />
           <Route path="/playlist/:playlistId" element={<Channels />} />
           <Route path="/player/:playlistId/:channelId" element={<VideoPlayer />} />
+          <Route path="/ip" element={<IPTracking />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
