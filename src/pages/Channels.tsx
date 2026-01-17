@@ -8,12 +8,15 @@ const Channels = () => {
   const navigate = useNavigate();
   const { playlistId } = useParams();
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
 
   // Check navigation direction and restore state only when coming back
   const getInitialState = () => {
@@ -198,7 +201,7 @@ const Channels = () => {
     const saveState = () => {
       sessionStorage.setItem(`channels-state-${playlistId}`, JSON.stringify({
         selectedIndex,
-        scrollTop: window.scrollY,
+        scrollTop: containerRef.current?.scrollTop || 0,
         searchQuery,
         httpsOnly
       }));
@@ -215,8 +218,10 @@ const Channels = () => {
   useEffect(() => {
     if (channels.length > 0 && initialState.scrollTop > 0) {
       const timer = setTimeout(() => {
-        // Restore scroll position
-        window.scrollTo(0, storedScrollTop.current);
+        // Restore scroll position on container
+        if (containerRef.current) {
+          containerRef.current.scrollTop = storedScrollTop.current;
+        }
         // Focus on the stored item
         const targetIndex = Math.min(initialState.selectedIndex, channels.length - 1);
         itemRefs.current[targetIndex]?.focus();
@@ -225,90 +230,118 @@ const Channels = () => {
     }
   }, [channels.length]);
 
+  // Handle scroll to show/hide header
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const currentScrollY = container.scrollTop;
+
+      // Show header when scrolling up, hide when scrolling down
+      if (currentScrollY < lastScrollY.current) {
+        setShowHeader(true);
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setShowHeader(false);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <div className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
-      <div className="max-w-7xl mx-auto px-8">
-        <div className="mb-16 flex justify-between items-center">
-          <button
-            onClick={() => navigate('/')}
-            className="text-blue-400 hover:text-blue-300 text-3xl flex items-center gap-4 px-8 py-6"
-          >
-            ← Back to Playlists
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="text-gray-400 hover:text-white text-3xl flex items-center gap-3 px-8 py-6"
-          >
-            🏠 Home
-          </button>
-        </div>
+    <div ref={containerRef} className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 overflow-y-auto">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Sticky Header Section */}
+        <div
+          className={`sticky top-0 z-10 bg-gradient-to-br from-gray-900 via-black to-gray-900 pb-6 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
+            }`}
+        >
+          <div className="mb-8 flex justify-between items-center">
+            <button
+              onClick={() => navigate('/')}
+              className="text-blue-400 hover:text-blue-300 text-xl flex items-center gap-2 px-4 py-3"
+            >
+              ← Back to Playlists
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="text-gray-400 hover:text-white text-xl flex items-center gap-2 px-4 py-3"
+            >
+              🏠 Home
+            </button>
+          </div>
 
-        <h1 className="text-7xl font-bold text-center mb-8 text-blue-400">
-          Select Channel
-        </h1>
+          <h1 className="text-4xl font-bold text-center mb-6 text-blue-400">
+            Select Channel
+          </h1>
 
-        {/* Search and Filter Row */}
-        {!loading && !error && allChannels.length > 0 && (
-          <div className="max-w-4xl mx-auto mb-10 flex flex-col sm:flex-row gap-4 items-center">
-            <div className="relative flex-1 w-full">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search channels..."
-                className="w-full px-6 py-4 text-2xl bg-gray-800 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-              />
-              {searchQuery && (
+          {/* Search and Filter Row */}
+          {!loading && !error && allChannels.length > 0 && (
+            <div className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row gap-3 items-center">
+              <div className="relative flex-1 w-full">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search channels..."
+                  className="w-full px-4 py-2 text-lg bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-2xl"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              {window.location.protocol === 'https:' && (
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-3xl"
+                  onClick={() => setHttpsOnly(!httpsOnly)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${httpsOnly
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    }`}
                 >
-                  ×
+                  {httpsOnly ? '✓ ' : ''}HTTPS Only
                 </button>
               )}
             </div>
-            {window.location.protocol === 'https:' && (
-              <button
-                onClick={() => setHttpsOnly(!httpsOnly)}
-                className={`px-6 py-4 rounded-xl text-xl font-semibold transition-all whitespace-nowrap ${httpsOnly
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                  }`}
-              >
-                {httpsOnly ? '✓ ' : ''}HTTPS Only
-              </button>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* Results count */}
-        {!loading && !error && allChannels.length > 0 && (searchQuery || httpsOnly) && (
-          <p className="text-center text-gray-400 mb-8 text-xl">
-            {channels.length} of {allChannels.length} channel{allChannels.length !== 1 ? 's' : ''}
-          </p>
-        )}
+          {/* Results count */}
+          {!loading && !error && allChannels.length > 0 && (searchQuery || httpsOnly) && (
+            <p className="text-center text-gray-400 mb-4 text-sm">
+              {channels.length} of {allChannels.length} channel{allChannels.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
 
         {loading && (
-          <div className="text-center text-5xl text-gray-400 py-20">
+          <div className="text-center text-2xl text-gray-400 py-10">
             Loading channels...
           </div>
         )}
 
         {error && (
-          <div className="text-center text-5xl text-red-400 py-20">
+          <div className="text-center text-2xl text-red-400 py-10">
             {error}
           </div>
         )}
 
         {!loading && !error && channels.length === 0 && (
-          <div className="text-center text-5xl text-gray-400 py-20">
+          <div className="text-center text-2xl text-gray-400 py-10">
             No channels found
           </div>
         )}
 
         {!loading && !error && channels.length > 0 && (
-          <div className="grid grid-cols-1 gap-6 max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-1 gap-3 max-w-5xl mx-auto px-4">
             {channels.map((channel, index) => (
               <div
                 key={channel.id}
@@ -316,9 +349,9 @@ const Channels = () => {
                 tabIndex={0}
                 data-index={index}
                 className={`
-                channel-item p-8 rounded-2xl cursor-pointer transition-all border-4 outline-none
+                channel-item p-4 rounded-xl cursor-pointer transition-all border-2 outline-none
                 ${!searchQuery && selectedIndex === index
-                    ? 'bg-blue-600 scale-[1.02] shadow-xl shadow-blue-500/50 border-blue-400'
+                    ? 'bg-blue-600 scale-[1.01] shadow-lg shadow-blue-500/50 border-blue-400'
                     : 'bg-gray-800 hover:bg-gray-700 border-transparent'
                   }
               `}
@@ -331,18 +364,18 @@ const Channels = () => {
                   navigate(`/player/${playlistId}/${channel.id}`);
                 }}
               >
-                <div className="flex items-center gap-8">
-                  <div className="w-24 h-24 flex items-center justify-center flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
                     {channel.logo && channel.logo.startsWith('http') ? (
-                      <img src={channel.logo} alt={channel.name} className="w-24 h-24 object-contain" />
+                      <img src={channel.logo} alt={channel.name} className="w-12 h-12 object-contain" />
                     ) : (
-                      <div className="text-6xl">{channel.logo || '📺'}</div>
+                      <div className="text-3xl">{channel.logo || '📺'}</div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-4xl font-bold truncate">{channel.name}</h2>
+                    <h2 className="text-xl font-bold truncate">{channel.name}</h2>
                     {channel.group && (
-                      <p className="text-gray-300 mt-2 text-2xl">{channel.group}</p>
+                      <p className="text-gray-300 mt-1 text-sm">{channel.group}</p>
                     )}
                   </div>
                   <button
@@ -364,7 +397,7 @@ const Channels = () => {
                         return newSet;
                       });
                     }}
-                    className={`text-5xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${favoriteIds.has(channel.id)
+                    className={`text-2xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${favoriteIds.has(channel.id)
                       ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]'
                       : 'text-gray-500 hover:text-yellow-300'
                       }`}
@@ -372,7 +405,7 @@ const Channels = () => {
                   >
                     {favoriteIds.has(channel.id) ? '★' : '☆'}
                   </button>
-                  <div className="text-5xl text-gray-300 flex-shrink-0 ml-2">▶</div>
+                  <div className="text-2xl text-gray-300 flex-shrink-0 ml-1">▶</div>
                 </div>
               </div>
             ))}
@@ -380,7 +413,7 @@ const Channels = () => {
         )}
 
         {!loading && !error && channels.length > 0 && (
-          <div className="mt-20 text-center text-gray-400 text-3xl px-8">
+          <div className="mt-8 text-center text-gray-400 text-sm px-4">
             <p>Click or press Enter to play • Use arrows to navigate • Backspace to go back</p>
           </div>
         )}

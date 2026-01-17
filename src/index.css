@@ -19,10 +19,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Force desktop layout on all devices except player */
-.desktop-layout {
-  min-width: 1200px;
-  overflow-x: auto;
+/* Force desktop layout on desktop devices only, allow normal mode on mobile */
+@media (min-width: 768px) {
+  .desktop-layout {
+    min-width: 1200px;
+    overflow-x: auto;
+  }
+}
+
+/* On mobile, allow normal responsive layout */
+@media (max-width: 767px) {
+  .desktop-layout {
+    min-width: 100%;
+    overflow-x: hidden;
+  }
 }
 
 /* Hide scrollbar for TV experience */

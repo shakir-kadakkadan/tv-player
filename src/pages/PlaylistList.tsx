@@ -8,6 +8,9 @@ const PlaylistList = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [hasFavorites, setHasFavorites] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
 
   // Check for favorites on mount
   useEffect(() => {
@@ -107,17 +110,45 @@ const PlaylistList = () => {
     }
   }, [playlists]);
 
-  return (
-    <div className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
-      <div className="max-w-7xl mx-auto px-8">
-        <h1 className="text-8xl font-bold text-center mb-16 text-blue-400">
-          TV Player
-        </h1>
-        <p className="text-center text-gray-300 mb-16 text-4xl">
-          Select a Playlist
-        </p>
+  // Handle scroll to show/hide header
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-        <div className="grid grid-cols-1 gap-10 max-w-5xl mx-auto px-6">
+    const handleScroll = () => {
+      const currentScrollY = container.scrollTop;
+
+      // Show header when scrolling up, hide when scrolling down
+      if (currentScrollY < lastScrollY.current) {
+        setShowHeader(true);
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setShowHeader(false);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 overflow-y-auto">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Sticky Header Section */}
+        <div
+          className={`sticky top-0 z-10 bg-gradient-to-br from-gray-900 via-black to-gray-900 pb-6 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
+            }`}
+        >
+          <h1 className="text-4xl font-bold text-center mb-6 text-blue-400">
+            TV Player
+          </h1>
+          <p className="text-center text-gray-300 mb-6 text-xl">
+            Select a Playlist
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 max-w-5xl mx-auto px-4">
           {playlists.map((playlist, index) => (
             <div
               key={playlist.id}
@@ -125,11 +156,10 @@ const PlaylistList = () => {
               tabIndex={0}
               data-index={index}
               className={`
-                playlist-item p-12 rounded-2xl cursor-pointer transition-all border-4 outline-none
-                ${
-                  selectedIndex === index
-                    ? 'bg-blue-600 scale-105 shadow-2xl shadow-blue-500/50 border-blue-400'
-                    : 'bg-gray-800 hover:bg-gray-700 border-transparent focus:bg-blue-600 focus:scale-105 focus:shadow-2xl focus:shadow-blue-500/50 focus:border-blue-400'
+                playlist-item p-4 rounded-xl cursor-pointer transition-all border-2 outline-none
+                ${selectedIndex === index
+                  ? 'bg-blue-600 scale-[1.01] shadow-lg shadow-blue-500/50 border-blue-400'
+                  : 'bg-gray-800 hover:bg-gray-700 border-transparent focus:bg-blue-600 focus:scale-[1.01] focus:shadow-lg focus:shadow-blue-500/50 focus:border-blue-400'
                 }
               `}
               onFocus={() => setSelectedIndex(index)}
@@ -139,21 +169,21 @@ const PlaylistList = () => {
                 navigate(`/playlist/${playlist.id}`);
               }}
             >
-              <div className="flex items-center gap-12">
-                <div className="text-9xl flex-shrink-0">{playlist.thumbnail}</div>
+              <div className="flex items-center gap-4">
+                <div className="text-3xl flex-shrink-0">{playlist.thumbnail}</div>
                 <div className="flex-1">
-                  <h2 className="text-5xl font-bold">{playlist.name}</h2>
-                  <p className="text-gray-200 mt-5 text-2xl">
+                  <h2 className="text-xl font-bold">{playlist.name}</h2>
+                  <p className="text-gray-200 mt-1 text-sm">
                     Click or press Enter to open
                   </p>
                 </div>
-                <div className="text-7xl text-gray-300 flex-shrink-0 ml-4">▶</div>
+                <div className="text-2xl text-gray-300 flex-shrink-0 ml-1">▶</div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-20 text-center text-gray-400 text-3xl px-8">
+        <div className="mt-8 text-center text-gray-400 text-sm px-4">
           <p>Click or press Enter to select • Use arrows to navigate</p>
         </div>
       </div>
