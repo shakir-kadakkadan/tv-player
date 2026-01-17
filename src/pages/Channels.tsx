@@ -14,6 +14,8 @@ const Channels = () => {
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Restore selected index from sessionStorage
   const getStoredIndex = () => {
@@ -93,25 +95,52 @@ const Channels = () => {
     loadChannels();
   }, [playlistId]);
 
-  // Filter channels when httpsOnly changes
+  // Filter channels when httpsOnly or searchQuery changes
   useEffect(() => {
     if (allChannels.length > 0) {
+      let filtered = allChannels;
+
       if (httpsOnly) {
-        const filtered = allChannels.filter(channel =>
+        filtered = filtered.filter(channel =>
           channel.url.toLowerCase().startsWith('https://')
         );
-        setChannels(filtered);
-      } else {
-        setChannels(allChannels);
       }
+
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        // First: channels that start with query
+        const startsWith = filtered.filter(channel =>
+          channel.name.toLowerCase().startsWith(query)
+        );
+        // Second: channels that contain query (but don't start with it)
+        const contains = filtered.filter(channel =>
+          !channel.name.toLowerCase().startsWith(query) &&
+          (channel.name.toLowerCase().includes(query) ||
+           (channel.group && channel.group.toLowerCase().includes(query)))
+        );
+        // Combine: startsWith first, then contains
+        filtered = [...startsWith, ...contains];
+      }
+
+      setChannels(filtered);
+      setSelectedIndex(0);
     }
-  }, [httpsOnly, allChannels]);
+  }, [httpsOnly, allChannels, searchQuery]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if the active element is not an interactive element
       const target = e.target as HTMLElement;
       const isChannelItem = target.classList.contains('channel-item');
+      const isSearchInput = target.tagName === 'INPUT';
+
+      // Don't handle backspace/escape when in search input
+      if (isSearchInput && (e.key === 'Backspace' || e.key === 'Escape')) {
+        if (e.key === 'Escape') {
+          setSearchQuery('');
+          searchInputRef.current?.blur();
+        }
+        return;
+      }
 
       switch (e.key) {
         case 'Enter':
@@ -149,9 +178,9 @@ const Channels = () => {
     };
   }, [selectedIndex, playlistId]);
 
-  // Restore scroll position and focus on stored item
+  // Restore scroll position and focus on stored item (only on initial load, not during search)
   useEffect(() => {
-    if (channels.length > 0) {
+    if (channels.length > 0 && !searchQuery) {
       const stored = sessionStorage.getItem(`channels-scroll-${playlistId}`);
       const storedIndex = stored ? JSON.parse(stored).selectedIndex || 0 : 0;
       const storedScroll = stored ? JSON.parse(stored).scrollTop || 0 : 0;
@@ -165,10 +194,10 @@ const Channels = () => {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [channels, playlistId]);
+  }, [channels.length, playlistId, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
+    <div className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
       <div className="max-w-7xl mx-auto px-8">
         <div className="mb-16 flex justify-between items-center">
           <button
@@ -185,29 +214,51 @@ const Channels = () => {
           </button>
         </div>
 
-        <h1 className="text-7xl font-bold text-center mb-16 text-blue-400">
+        <h1 className="text-7xl font-bold text-center mb-8 text-blue-400">
           Select Channel
         </h1>
 
-        {/* HTTPS Only Filter */}
-        {!loading && !error && allChannels.length > 0 && window.location.protocol === 'https:' && (
-          <div className="flex justify-center mb-16">
-            <button
-              onClick={() => setHttpsOnly(!httpsOnly)}
-              className={`px-10 py-5 rounded-2xl text-2xl font-semibold transition-all ${
-                httpsOnly
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-              }`}
-            >
-              {httpsOnly ? '✓ ' : ''}HTTPS Only
-              {httpsOnly && (
-                <span className="ml-3 text-xl">
-                  ({channels.length} of {allChannels.length})
-                </span>
+        {/* Search and Filter Row */}
+        {!loading && !error && allChannels.length > 0 && (
+          <div className="max-w-4xl mx-auto mb-10 flex flex-col sm:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search channels..."
+                className="w-full px-6 py-4 text-2xl bg-gray-800 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-3xl"
+                >
+                  ×
+                </button>
               )}
-            </button>
+            </div>
+            {window.location.protocol === 'https:' && (
+              <button
+                onClick={() => setHttpsOnly(!httpsOnly)}
+                className={`px-6 py-4 rounded-xl text-xl font-semibold transition-all whitespace-nowrap ${
+                  httpsOnly
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+              >
+                {httpsOnly ? '✓ ' : ''}HTTPS Only
+              </button>
+            )}
           </div>
+        )}
+
+        {/* Results count */}
+        {!loading && !error && allChannels.length > 0 && (searchQuery || httpsOnly) && (
+          <p className="text-center text-gray-400 mb-8 text-xl">
+            {channels.length} of {allChannels.length} channel{allChannels.length !== 1 ? 's' : ''}
+          </p>
         )}
 
         {loading && (
@@ -229,7 +280,7 @@ const Channels = () => {
         )}
 
         {!loading && !error && channels.length > 0 && (
-          <div className="grid grid-cols-1 gap-10 max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-1 gap-6 max-w-5xl mx-auto px-6">
           {channels.map((channel, index) => (
             <div
               key={channel.id}
@@ -237,36 +288,33 @@ const Channels = () => {
               tabIndex={0}
               data-index={index}
               className={`
-                channel-item p-12 rounded-2xl cursor-pointer transition-all border-4 outline-none
+                channel-item p-8 rounded-2xl cursor-pointer transition-all border-4 outline-none
                 ${
-                  selectedIndex === index
-                    ? 'bg-blue-600 scale-105 shadow-2xl shadow-blue-500/50 border-blue-400'
-                    : 'bg-gray-800 hover:bg-gray-700 border-transparent focus:bg-blue-600 focus:scale-105 focus:shadow-2xl focus:shadow-blue-500/50 focus:border-blue-400'
+                  !searchQuery && selectedIndex === index
+                    ? 'bg-blue-600 scale-[1.02] shadow-xl shadow-blue-500/50 border-blue-400'
+                    : 'bg-gray-800 hover:bg-gray-700 border-transparent'
                 }
               `}
-              onFocus={() => setSelectedIndex(index)}
-              onMouseEnter={() => setSelectedIndex(index)}
+              onFocus={() => !searchQuery && setSelectedIndex(index)}
+              onMouseEnter={() => !searchQuery && setSelectedIndex(index)}
               onClick={() => {
                 setSelectedIndex(index);
                 navigate(`/player/${playlistId}/${channel.id}`);
               }}
             >
-              <div className="flex items-center gap-12">
-                <div className="w-32 h-32 flex items-center justify-center flex-shrink-0">
+              <div className="flex items-center gap-8">
+                <div className="w-24 h-24 flex items-center justify-center flex-shrink-0">
                   {channel.logo && channel.logo.startsWith('http') ? (
-                    <img src={channel.logo} alt={channel.name} className="w-32 h-32 object-contain" />
+                    <img src={channel.logo} alt={channel.name} className="w-24 h-24 object-contain" />
                   ) : (
-                    <div className="text-8xl">{channel.logo || '📺'}</div>
+                    <div className="text-6xl">{channel.logo || '📺'}</div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-5xl font-bold truncate">{channel.name}</h2>
+                  <h2 className="text-4xl font-bold truncate">{channel.name}</h2>
                   {channel.group && (
-                    <p className="text-gray-300 mt-4 text-3xl">{channel.group}</p>
+                    <p className="text-gray-300 mt-2 text-2xl">{channel.group}</p>
                   )}
-                  <p className="text-gray-200 mt-5 text-2xl">
-                    Press Enter to play
-                  </p>
                 </div>
                 <button
                   onClick={(e) => {
@@ -287,7 +335,7 @@ const Channels = () => {
                       return newSet;
                     });
                   }}
-                  className={`text-6xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${
+                  className={`text-5xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 ${
                     favoriteIds.has(channel.id)
                       ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]'
                       : 'text-gray-500 hover:text-yellow-300'
@@ -296,7 +344,7 @@ const Channels = () => {
                 >
                   {favoriteIds.has(channel.id) ? '★' : '☆'}
                 </button>
-                <div className="text-7xl text-gray-300 flex-shrink-0 ml-4">▶</div>
+                <div className="text-5xl text-gray-300 flex-shrink-0 ml-2">▶</div>
               </div>
             </div>
           ))}

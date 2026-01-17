@@ -3,17 +3,26 @@
 @import "tailwindcss/utilities" layer(utilities);
 
 * {
-  margin: 0;
+  /* margin: 0;
   padding: 0;
-  box-sizing: border-box;
+  box-sizing: border-box; */
 }
 
 body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Force desktop layout on all devices except player */
+.desktop-layout {
+  min-width: 1200px;
+  overflow-x: auto;
 }
 
 /* Hide scrollbar for TV experience */

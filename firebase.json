@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "tvtvtv",
+    "site": "tv1",
     "public": "dist",
     "ignore": [
       "firebase.json",

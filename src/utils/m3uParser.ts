@@ -1,5 +1,16 @@
 import { Channel } from '../types';
 
+// Generate a unique ID from URL
+function generateId(url: string): string {
+  let hash = 0;
+  for (let i = 0; i < url.length; i++) {
+    const char = url.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `ch_${Math.abs(hash).toString(36)}`;
+}
+
 export async function parseM3U(url: string): Promise<Channel[]> {
   try {
     const response = await fetch(url);
@@ -42,7 +53,7 @@ export async function parseM3U(url: string): Promise<Channel[]> {
       // The next line after #EXTINF is the stream URL
       else if (currentChannel.name && (line.startsWith('http') || line.startsWith('//'))) {
         channels.push({
-          id: `channel_${channels.length}`,
+          id: generateId(line),
           name: currentChannel.name,
           url: line,
           logo: currentChannel.logo,

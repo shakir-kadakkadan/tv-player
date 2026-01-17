@@ -108,7 +108,7 @@ const PlaylistList = () => {
   }, [playlists]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
+    <div className="desktop-layout min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-16">
       <div className="max-w-7xl mx-auto px-8">
         <h1 className="text-8xl font-bold text-center mb-16 text-blue-400">
           TV Player

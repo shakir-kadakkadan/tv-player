@@ -1,4 +1,4 @@
-# https://tvtvtv.web.app
+# https://tv1.web.app
 
 # TV Player - M3U Playlist Web Player
 
@@ -50,6 +50,12 @@ npm run build
 npm run preview
 ```
 
+### Deploy to Firebase
+
+```bash
+npm run build && firebase deploy --only hosting
+```
+
 ## Usage
 
 ### Navigation
@@ -92,7 +98,7 @@ Edit [src/pages/Channels.tsx](src/pages/Channels.tsx) to modify the channels for
 
 ## Project Structure
 
-```
+```ini
 tv-player/
 ├── src/
 │   ├── pages/
