@@ -4,6 +4,7 @@ import { Channel } from '../types';
 import { parseM3U } from '../utils/m3uParser';
 import { getFavorites, toggleFavorite } from '../utils/favorites';
 import { trackIPData } from '../utils/firebase';
+import { VLCDialog } from '../components/VLCDialog';
 
 const Channels = () => {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ const Channels = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showHeader, setShowHeader] = useState(true);
   const lastScrollY = useRef(0);
+  const [vlcDialogOpen, setVlcDialogOpen] = useState(false);
+  const [vlcUrl, setVlcUrl] = useState('');
 
   // Check navigation direction and restore state only when coming back
   const getInitialState = () => {
@@ -451,23 +454,16 @@ const Channels = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Create M3U file content
-                      const m3uContent = `#EXTM3U\n#EXTINF:-1,${channel.name}\n${channel.url}`;
-                      const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${channel.name.replace(/[^a-z0-9]/gi, '_')}.m3u`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
+                      // Copy URL to clipboard and show dialog
+                      navigator.clipboard.writeText(channel.url);
+                      setVlcUrl(channel.url);
+                      setVlcDialogOpen(true);
                     }}
-                    className="text-2xl flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95 text-orange-500 hover:text-orange-400"
-                    aria-label="Download for VLC"
-                    title="Download M3U file for VLC"
+                    className="flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95"
+                    aria-label="Copy URL for VLC"
+                    title="Copy stream URL for VLC"
                   >
-                    🎬
+                    <img src="/vlc-icon.png" alt="VLC" className="w-6 h-6" />
                   </button>
                   <div className="text-2xl text-gray-300 flex-shrink-0 ml-1">▶</div>
                 </div>
@@ -482,6 +478,13 @@ const Channels = () => {
           </div>
         )}
       </div>
+
+      <VLCDialog
+        isOpen={vlcDialogOpen}
+        onClose={() => setVlcDialogOpen(false)}
+        url={vlcUrl}
+        type="channel"
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Playlist } from '../types';
 import { getFavorites } from '../utils/favorites';
 import { trackIPData } from '../utils/firebase';
+import { VLCDialog } from '../components/VLCDialog';
 
 const PlaylistList = () => {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ const PlaylistList = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showHeader, setShowHeader] = useState(true);
   const lastScrollY = useRef(0);
+  const [vlcDialogOpen, setVlcDialogOpen] = useState(false);
+  const [vlcUrl, setVlcUrl] = useState('');
 
   // Check for favorites on mount
   useEffect(() => {
@@ -188,6 +191,23 @@ const PlaylistList = () => {
                     Click or press Enter to open
                   </p>
                 </div>
+                {/* VLC button - only show for playlists with URLs (not favorites or most-watched) */}
+                {playlist.url && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Copy URL to clipboard and show dialog
+                      navigator.clipboard.writeText(playlist.url);
+                      setVlcUrl(playlist.url);
+                      setVlcDialogOpen(true);
+                    }}
+                    className="flex-shrink-0 transition-all duration-300 transform hover:scale-125 active:scale-95"
+                    aria-label="Copy URL for VLC"
+                    title="Copy playlist URL for VLC"
+                  >
+                    <img src="/vlc-icon.png" alt="VLC" className="w-6 h-6" />
+                  </button>
+                )}
                 <div className="text-2xl text-gray-300 flex-shrink-0 ml-1">▶</div>
               </div>
             </div>
@@ -198,6 +218,13 @@ const PlaylistList = () => {
           <p>Click or press Enter to select • Use arrows to navigate</p>
         </div>
       </div>
+
+      <VLCDialog
+        isOpen={vlcDialogOpen}
+        onClose={() => setVlcDialogOpen(false)}
+        url={vlcUrl}
+        type="playlist"
+      />
     </div>
   );
 };
